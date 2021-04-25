@@ -132,6 +132,6 @@ void test_led()
   lcd.setCursor(0, 1);
   lcd.print("LED OFF");  
   digitalWrite(pin_LED, LOW);
-  delay(time_interval_test); 
+  delay(time_interval_test);
 }
 ```
