@@ -3,7 +3,7 @@ La idea es hacer un sensor de temperatura y de gases peligrosos (humos y CO2) qu
 
 Debería también tener botones para setear los umbrales, además de una pantalla 16x2 que muestre los valores actuales y los umbrales
 
-La pantalla no estará allways on, para ahorrar energía
+La pantalla no estará always on, para ahorrar energía
 
 El objetivo del proyecto es sobre todo aprender a usar los sensores, botones, pantalla y memoria EEPROM
 
