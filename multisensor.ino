@@ -2,6 +2,8 @@
 // Include Libraries
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
+#include <DHT.h>
+#include <DHT_U.h>
 
 // Define constants
 #define time_out_test 10000 // time out for each test
@@ -12,23 +14,38 @@
 # define pin_PLUS 7
 # define pin_MINUS 6
 # define pin_LED 5
+# define pin_DHT 3
+
+// Others
+#define DHTTYPE DHT11
 
 // Create  objects
 LiquidCrystal_I2C lcd(0x27,16,2);  // Create LCD in the i2c address (my LCD ys 16x2)
+DHT dht(pin_DHT, DHTTYPE);	// Create dht
 
-void setup() {
+
+// Global variables
+float temp;
+
+void setup() 
+{
   Serial.begin(9600);
   Serial.println("START!");
+
   lcd.init();             // INITIALIZE LCD
+  dht.begin();	          // INITIALIZE DHT
+  
   pinMode(pin_M, INPUT_PULLUP);
   pinMode(pin_PLUS, INPUT_PULLUP);
   pinMode(pin_MINUS, INPUT_PULLUP);
   pinMode(pin_LED, OUTPUT);
 
+
   test_devices();
 }
 
-void loop() {
+void loop() 
+{
 }
 
 void test_devices()
@@ -41,7 +58,7 @@ void test_devices()
   // TESTING LCD
   test_lcd();
     
-  // TESTING BUTTONS (PEND)
+  // TESTING BUTTONS
   test_button(pin_M);
   test_button(pin_PLUS);
   test_button(pin_MINUS);
@@ -49,9 +66,10 @@ void test_devices()
   // TESTING LED (PEND)
   test_led();
   // TESTING DHT (PEND)
+  test_dht();
   // TESTING GAS SENSOR (PEND)
   // TESTING BUZZER (PEND)
-  
+  // TESTING EEPROM (PEND)
   // END OF TESTS
   lcd.clear();
   lcd.print("END OF TESTS");
@@ -107,16 +125,11 @@ void test_button(int pin)
       test_result=1;    
     }
   } 
+  lcd.setCursor(0, 1);
   if (test_result==0) // Test not OK or time out
-  {
-      lcd.setCursor(0, 1);
-      lcd.print("Button NOT OK");  
-  }
+    lcd.print("Button NOT OK");  
   else // Test OK
-  {
-      lcd.setCursor(0, 1);
-      lcd.print("Button OK");  
-  }
+    lcd.print("Button OK");  
   delay(time_interval_test);   
 }
 
@@ -132,6 +145,27 @@ void test_led()
   lcd.setCursor(0, 1);
   lcd.print("LED OFF");  
   digitalWrite(pin_LED, LOW);
+  delay(time_interval_test);
+}
+
+void test_dht()
+{
+  lcd.clear();
+  lcd.print("Testing DHT...");
+  delay(time_interval_test);
+  lcd.clear();
+  lcd.print("Reading Temp");
+  delay(time_interval_test); 
+  temp=dht.readTemperature();
+  lcd.setCursor(0, 1);
+  if (isnan(temp)) 	  // DHT Working OK?
+    lcd.print("DHT NOT OK");   
+  else
+  {
+    lcd.print("Temp: ");
+    lcd.print(temp);
+    lcd.print(" C");
+  }
   delay(time_interval_test);
 }
 ```
