@@ -8,6 +8,7 @@
 // Define constants
 #define time_out_test 10000 // time out for each test
 #define time_interval_test 2000 // time between tests
+#define time_warmup_gas_sensor 20000 // time to warm up gas sensor
 
 //Define Pins
 # define pin_M 4
@@ -16,6 +17,7 @@
 # define pin_LED 5
 # define pin_DHT 3
 # define pin_BUZZER 2
+# define pin_GAS_SENSOR A3
 
 // Others
 #define DHTTYPE DHT11
@@ -26,15 +28,15 @@ DHT dht(pin_DHT, DHTTYPE);	// Create dht
 
 
 // Global variables
-float temp;
+float temp, gas_level;
 
 void setup() 
 {
   Serial.begin(9600);
-  Serial.println("START!");
 
-  lcd.init();             // INITIALIZE LCD
-  dht.begin();	          // INITIALIZE DHT
+  lcd.init();                     // INITIALIZE LCD
+  dht.begin();	                  // INITIALIZE DHT
+  setup_gas_sensor();
   
   pinMode(pin_M, INPUT_PULLUP);
   pinMode(pin_PLUS, INPUT_PULLUP);
@@ -47,10 +49,31 @@ void setup()
 
 void loop() 
 {
+  gas_level = analogRead(pin_GAS_SENSOR); // read analog input pin 0
+  Serial.print("Gas Value: ");
+  Serial.print(gas_level);  
+  if(gas_level > 300)
+  {
+    Serial.print(" | Gas/Smoke detected!");
+  }  
+  Serial.println("");
+  delay(2000); // wait 2s for next reading  
+}
+
+void setup_gas_sensor()
+{
+  lcd.backlight();  //  TURN ON LCD BACKLIGHT
+  lcd.print("Warming up");
+  lcd.setCursor(0, 1);
+  lcd.print("Gas Sensor");
+  delay(time_warmup_gas_sensor);  // WARM UP GAS SENSOR
+  lcd.clear();
+  lcd.noBacklight();
 }
 
 void test_devices()
 {
+  Serial.println("Begin Testing...");   
   lcd.backlight();  //  TURN ON LCD BACKLIGHT
   lcd.clear();
   lcd.print("TESTING...");
@@ -67,11 +90,12 @@ void test_devices()
   // TESTING LED (PEND)
   test_led();
 
+  // TESTING BUZZER (PEND)
+  test_buzzer();
+
   // TESTING DHT (PEND)
   test_dht();
 
-  // TESTING BUZZER (PEND)
-  test_buzzer();
   // TESTING GAS SENSOR (PEND)
   // TESTING EEPROM (PEND)
   // END OF TESTS
@@ -119,7 +143,6 @@ void test_button(int pin)
   lcd.print(buttonName);
   lcd.print("...");
   unsigned long time_test_started=millis();
-  Serial.println(time_test_started);
   while (test_result==0 && (millis()-time_test_started < time_out_test)) // Wait for button or time_out
   {
     if (!digitalRead(pin))
@@ -148,6 +171,21 @@ void test_led()
   delay(time_interval_test);
 }
 
+void test_buzzer()
+{
+  lcd.clear();
+  lcd.print("Testing Buzzer..");
+  delay(time_interval_test);
+  lcd.clear();
+  lcd.print("Buzzer ON");
+  tone(pin_BUZZER,440,time_interval_test*2);  // 2xTimes to test the "noTone" function
+  delay(time_interval_test); 
+  lcd.setCursor(0, 1);
+  lcd.print("Buzzer OFF");
+  noTone(pin_BUZZER);
+  delay(time_interval_test);  
+}
+
 void test_dht()
 {
   lcd.clear();
@@ -167,20 +205,5 @@ void test_dht()
     lcd.print(" C");
   }
   delay(time_interval_test);
-}
-
-void test_buzzer()
-{
-  lcd.clear();
-  lcd.print("Testing Buzzer..");
-  delay(time_interval_test);
-  lcd.clear();
-  lcd.print("Buzzer ON");
-  tone(pin_BUZZER,440,time_interval_test);
-  delay(time_interval_test); 
-  lcd.setCursor(0, 1);
-  lcd.print("Buzzer OFF");
-  noTone(pin_BUZZER);
-  delay(time_interval_test);  
 }
 ```
