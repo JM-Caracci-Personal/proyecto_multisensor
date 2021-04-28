@@ -49,15 +49,6 @@ void setup()
 
 void loop() 
 {
-  gas_level = analogRead(pin_GAS_SENSOR); // read analog input pin 0
-  Serial.print("Gas Value: ");
-  Serial.print(gas_level);  
-  if(gas_level > 300)
-  {
-    Serial.print(" | Gas/Smoke detected!");
-  }  
-  Serial.println("");
-  delay(2000); // wait 2s for next reading  
 }
 
 void setup_gas_sensor()
@@ -97,6 +88,8 @@ void test_devices()
   test_dht();
 
   // TESTING GAS SENSOR (PEND)
+  test_gas_sensor();
+
   // TESTING EEPROM (PEND)
   // END OF TESTS
   lcd.clear();
@@ -204,6 +197,21 @@ void test_dht()
     lcd.print(temp);
     lcd.print(" C");
   }
+  delay(time_interval_test);
+}
+
+void test_gas_sensor()
+{
+  lcd.clear();
+  lcd.print("Testing Gas S...");
+  delay(time_interval_test);
+  lcd.clear();
+  lcd.print("Reading Gas Lvl");
+  delay(time_interval_test); 
+  gas_level=analogRead(pin_GAS_SENSOR);
+  lcd.setCursor(0, 1);
+  lcd.print("Gas Lvl: ");
+  lcd.print(gas_level);
   delay(time_interval_test);
 }
 ```
