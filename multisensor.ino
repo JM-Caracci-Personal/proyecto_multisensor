@@ -4,13 +4,14 @@
 #include <LiquidCrystal_I2C.h>
 #include <DHT.h>
 #include <DHT_U.h>
+#include <EEPROM.h>
 
 // Define constants
 #define time_out_test 10000 // time out for each test
 #define time_interval_test 2000 // time between tests
 #define time_warmup_gas_sensor 20000 // time to warm up gas sensor
 
-//Define Pins
+//Define Pins and EEPROM addresses
 # define pin_M 4
 # define pin_PLUS 7
 # define pin_MINUS 6
@@ -18,17 +19,23 @@
 # define pin_DHT 3
 # define pin_BUZZER 2
 # define pin_GAS_SENSOR A3
+#define address_threshold_temp 0    // increments of 1 [0-50] mapped from 0 C to 50 C with increments of "T_increment"
+#define address_threshold_gas 1     // increments of 1 [0-200] mapped from 0 to 1000 with increments of "G_increment"
 
 // Others
 #define DHTTYPE DHT11
+#define T_increment 1
+#define G_increment 5
 
 // Create  objects
-LiquidCrystal_I2C lcd(0x27,16,2);  // Create LCD in the i2c address (my LCD ys 16x2)
-DHT dht(pin_DHT, DHTTYPE);	// Create dht
+LiquidCrystal_I2C lcd(0x27,16,2);   // Create LCD in the i2c address (my LCD ys 16x2)
+DHT dht(pin_DHT, DHTTYPE);	        // Create dht
 
 
 // Global variables
 float temp, gas_level;
+int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
+int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 
 void setup() 
 {
@@ -37,7 +44,13 @@ void setup()
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
   setup_gas_sensor();
-  
+
+  // Setup Thresholds
+  // EEPROM.update(address_threshold_temp, 40/T_increment);	    // First Setup Ever for T threshold 
+  // EEPROM.update(address_threshold_gas, 300/G_increment);	    // First Setup Ever for Gas threshold 
+  t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  
+  gas_threshold=EEPROM.read(address_threshold_temp)*T_increment;
+
   pinMode(pin_M, INPUT_PULLUP);
   pinMode(pin_PLUS, INPUT_PULLUP);
   pinMode(pin_MINUS, INPUT_PULLUP);
@@ -70,31 +83,21 @@ void test_devices()
   lcd.print("TESTING...");
   delay(time_interval_test); 
 
-  // TESTING LCD
-  test_lcd();
-    
-  // TESTING BUTTONS
-  test_button(pin_M);
+  test_lcd();             // TESTING LCD
+  test_button(pin_M);     // TESTING BUTTONS
   test_button(pin_PLUS);
   test_button(pin_MINUS);
-
-  // TESTING LED (PEND)
-  test_led();
-
-  // TESTING BUZZER (PEND)
-  test_buzzer();
-
-  // TESTING DHT (PEND)
-  test_dht();
-
-  // TESTING GAS SENSOR (PEND)
-  test_gas_sensor();
-
-  // TESTING EEPROM (PEND)
+  test_led();             // TESTING LED
+  test_buzzer();          // TESTING BUZZER
+  test_dht();             // TESTING DHT
+  test_gas_sensor();      // TESTING GAS SENSOR
+  test_eemprom();         // TESTING EEPROM (PEND)
+  
   // END OF TESTS
   lcd.clear();
   lcd.print("END OF TESTS");
   delay(time_interval_test);
+  lcd.clear();
   lcd.noBacklight();
   Serial.println("End of Test");   
 }
@@ -142,9 +145,9 @@ void test_button(int pin)
       test_result=1;    
   } 
   lcd.setCursor(0, 1);
-  if (test_result==0) // Test not OK or time out
+  if (test_result==0)             // Test not OK or time out
     lcd.print("Button NOT OK");  
-  else // Test OK
+  else                            // Test OK
     lcd.print("Button OK");  
   delay(time_interval_test);   
 }
@@ -189,7 +192,7 @@ void test_dht()
   delay(time_interval_test); 
   temp=dht.readTemperature();
   lcd.setCursor(0, 1);
-  if (isnan(temp)) 	  // DHT Working OK?
+  if (isnan(temp)) 	                // DHT Working OK?
     lcd.print("DHT NOT OK");   
   else
   {
@@ -212,6 +215,25 @@ void test_gas_sensor()
   lcd.setCursor(0, 1);
   lcd.print("Gas Lvl: ");
   lcd.print(gas_level);
+  delay(time_interval_test);
+}
+
+void test_eemprom()
+{
+  lcd.clear();
+  lcd.print("Testing EEPROM");
+  delay(time_interval_test);
+  lcd.clear();
+  lcd.print("Reading EEMPROM");
+  t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  
+  gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
+  delay(time_interval_test); 
+  lcd.clear();
+  lcd.print("T Thresh: ");
+  lcd.print(t_threshold);
+  lcd.setCursor(0, 1);
+  lcd.print("G Thresh: ");
+  lcd.print(gas_threshold);
   delay(time_interval_test);
 }
 ```
