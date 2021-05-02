@@ -39,14 +39,11 @@ int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 int display_mode=0;
 bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
 bool buzzer_sound_on, led_light_on=1;
-unsigned int t_last_click,t_last_read;
+long t_last_click,t_last_read;
 
 void setup() 
 {
   Serial.begin(9600);
-  test_on_setup=!digitalRead(pin_M);  // If M is pressed on startup, it will run the tests 
-  Serial.print("Test on Startup: ");
-  Serial.println(test_on_setup);
 
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
@@ -63,8 +60,6 @@ void setup()
   pinMode(pin_MINUS, INPUT_PULLUP);
   pinMode(pin_LED, OUTPUT);
   pinMode(pin_BUZZER, OUTPUT);
-
-  if (test_on_setup==1) test_devices(); // If M is pressed on startup, it runs the tests 
   
   screen_on=1;                      // Start device with on for time_screen_off seconds
   t_last_click=millis();
