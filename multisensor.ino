@@ -13,13 +13,13 @@
 #define time_screen_off 30000         // time to turn off screen
 
 //Define Pins and EEPROM addresses
-# define pin_M 4
-# define pin_PLUS 7
-# define pin_MINUS 6
-# define pin_LED 5
-# define pin_DHT 3
-# define pin_BUZZER 2
-# define pin_GAS_SENSOR A3
+#define pin_M 4
+#define pin_PLUS 7
+#define pin_MINUS 6
+#define pin_LED 5
+#define pin_DHT 3
+#define pin_BUZZER 2
+#define pin_GAS_SENSOR A3
 #define address_threshold_temp 0    // increments of 1 [0-50] mapped from 0 C to 50 C with increments of "T_increment"
 #define address_threshold_gas 1     // increments of 1 [0-200] mapped from 0 to 1000 with increments of "G_increment"
 
@@ -38,13 +38,14 @@ float temp, gas_level;
 int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
 int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 int display_mode=0;
-bool screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
+bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
 bool buzzer_sound_on, led_light_on=1;
 
 void setup() 
 {
   Serial.begin(9600);
-
+  if (!digitalRead(pin_M))          // If M is pressed on startup, it runs the tests
+  test_on_setup=1;
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
   setup_gas_sensor();
@@ -60,10 +61,8 @@ void setup()
   pinMode(pin_MINUS, INPUT_PULLUP);
   pinMode(pin_LED, OUTPUT);
   pinMode(pin_BUZZER, OUTPUT);
-  
-  if (!digitalRead(pin_M))          // If M is pressed on startup, it runs the tests
-    test_devices();
-  
+
+  if (test_on_setup) test_devices();
   screen_on=1;                      // Start device with on for time_screen_off seconds
 }
 
