@@ -1,3 +1,4 @@
+```cpp
 // Include Libraries
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
@@ -10,8 +11,11 @@
 #define time_interval_test 2000       // time between tests
 #define time_warmup_gas_sensor 20000  // time to warm up gas sensor
 #define time_screen_off 30000         // time to turn off screen
+#define min_t_btw_read 3000           // time between reading sensors
+#define T_increment 1
+#define G_increment 5
 
-//Define Pins and EEPROM addresses
+//Define Pins and EEPROM addresses and other constants
 #define pin_M 4
 #define pin_PLUS 7
 #define pin_MINUS 6
@@ -21,11 +25,7 @@
 #define pin_GAS_SENSOR A3
 #define address_threshold_temp 0    // increments of 1 [0-50] mapped from 0 C to 50 C with increments of "T_increment"
 #define address_threshold_gas 1     // increments of 1 [0-200] mapped from 0 to 1000 with increments of "G_increment"
-
-// Others
 #define DHTTYPE DHT11
-#define T_increment 1
-#define G_increment 5
 
 // Create  objects
 LiquidCrystal_I2C lcd(0x27,16,2);   // Create LCD in the i2c address (my LCD ys 16x2)
@@ -39,11 +39,14 @@ int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 int display_mode=0;
 bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
 bool buzzer_sound_on, led_light_on=1;
+unsigned int t_last_click,t_last_read;
 
 void setup() 
 {
   Serial.begin(9600);
   test_on_setup=!digitalRead(pin_M);  // If M is pressed on startup, it will run the tests 
+  Serial.print("Test on Startup: ");
+  Serial.println(test_on_setup);
 
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
@@ -62,12 +65,14 @@ void setup()
   pinMode(pin_BUZZER, OUTPUT);
 
   if (test_on_setup==1) test_devices(); // If M is pressed on startup, it runs the tests 
-
+  
   screen_on=1;                      // Start device with on for time_screen_off seconds
+  t_last_click=millis();
 }
 
 void loop() 
 {
+  read_sensors();
 }
 
 void setup_gas_sensor()
@@ -242,3 +247,24 @@ void test_eemprom()
   lcd.print(gas_threshold);
   delay(time_interval_test);
 }
+
+void read_sensors()
+{
+  if (millis()-t_last_read>min_t_btw_read)
+  {
+    temp=dht.readTemperature();
+    if (isnan(temp)) 	                // DHT Working OK?
+      Serial.println("DHT NOT OK");   
+    else
+    {
+      Serial.print("Temp: ");
+      Serial.print(temp);
+      Serial.println(" C");
+    }  
+    gas_level=analogRead(pin_GAS_SENSOR);
+    Serial.print("Gas: " );  
+    Serial.println(gas_level); 
+    t_last_read=millis();
+  }
+}
+```
