@@ -7,9 +7,10 @@
 #include <EEPROM.h>
 
 // Define constants
-#define time_out_test 10000 // time out for each test
-#define time_interval_test 2000 // time between tests
-#define time_warmup_gas_sensor 20000 // time to warm up gas sensor
+#define time_out_test 10000           // time out for each test
+#define time_interval_test 2000       // time between tests
+#define time_warmup_gas_sensor 20000  // time to warm up gas sensor
+#define time_screen_off 30000         // time to turn off screen
 
 //Define Pins and EEPROM addresses
 # define pin_M 4
@@ -36,6 +37,9 @@ DHT dht(pin_DHT, DHTTYPE);	        // Create dht
 float temp, gas_level;
 int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
 int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
+int display_mode=0;
+bool screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
+bool buzzer_sound_on, led_light_on=1;
 
 void setup() 
 {
@@ -56,8 +60,11 @@ void setup()
   pinMode(pin_MINUS, INPUT_PULLUP);
   pinMode(pin_LED, OUTPUT);
   pinMode(pin_BUZZER, OUTPUT);
-
-  test_devices();
+  
+  if (!digitalRead(pin_M))          // If M is pressed on startup, it runs the tests
+    test_devices();
+  
+  screen_on=1;                      // Start device with on for time_screen_off seconds
 }
 
 void loop() 
