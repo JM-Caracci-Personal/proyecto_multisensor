@@ -44,8 +44,8 @@ bool buzzer_sound_on, led_light_on=1;
 void setup() 
 {
   Serial.begin(9600);
-  if (!digitalRead(pin_M))          // If M is pressed on startup, it runs the tests
-  test_on_setup=1;
+  test_on_setup=!digitalRead(pin_M);  // If M is pressed on startup, it runs the tests 
+
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
   setup_gas_sensor();
@@ -62,7 +62,7 @@ void setup()
   pinMode(pin_LED, OUTPUT);
   pinMode(pin_BUZZER, OUTPUT);
 
-  if (test_on_setup) test_devices();
+  if (test_on_setup==1) test_devices();
   screen_on=1;                      // Start device with on for time_screen_off seconds
 }
 
