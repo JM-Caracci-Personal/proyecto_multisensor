@@ -1,4 +1,3 @@
-```cpp
 // Include Libraries
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
@@ -44,7 +43,7 @@ bool buzzer_sound_on, led_light_on=1;
 void setup() 
 {
   Serial.begin(9600);
-  test_on_setup=!digitalRead(pin_M);  // If M is pressed on startup, it runs the tests 
+  test_on_setup=!digitalRead(pin_M);  // If M is pressed on startup, it will run the tests 
 
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
@@ -62,7 +61,8 @@ void setup()
   pinMode(pin_LED, OUTPUT);
   pinMode(pin_BUZZER, OUTPUT);
 
-  if (test_on_setup==1) test_devices();
+  if (test_on_setup==1) test_devices(); // If M is pressed on startup, it runs the tests 
+
   screen_on=1;                      // Start device with on for time_screen_off seconds
 }
 
@@ -242,4 +242,3 @@ void test_eemprom()
   lcd.print(gas_threshold);
   delay(time_interval_test);
 }
-```
