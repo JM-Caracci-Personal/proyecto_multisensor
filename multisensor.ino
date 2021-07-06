@@ -1,4 +1,3 @@
-```cpp
 // Include Libraries
 #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
@@ -44,22 +43,29 @@ long t_last_click,t_last_read;
 void setup() 
 {
   Serial.begin(9600);
-
-  lcd.init();                     // INITIALIZE LCD
-  dht.begin();	                  // INITIALIZE DHT
-  setup_gas_sensor();
-
-  // Setup Thresholds
-  // EEPROM.update(address_threshold_temp, 40/T_increment);	    // First Setup Ever for T threshold 
-  // EEPROM.update(address_threshold_gas, 300/G_increment);	    // First Setup Ever for Gas threshold 
-  t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  
-  gas_threshold=EEPROM.read(address_threshold_temp)*T_increment;
+  Serial.println("Initialize Serial");
 
   pinMode(pin_M, INPUT_PULLUP);
   pinMode(pin_PLUS, INPUT_PULLUP);
   pinMode(pin_MINUS, INPUT_PULLUP);
   pinMode(pin_LED, OUTPUT);
   pinMode(pin_BUZZER, OUTPUT);
+  
+  if (!digitalRead(pin_M)) test_on_setup=true;  
+  Serial.println("test_on_setup=");
+  Serial.println(test_on_setup);
+    
+  lcd.init();                     // INITIALIZE LCD
+  dht.begin();	                  // INITIALIZE DHT
+  setup_gas_sensor();
+
+  // Setup Thresholds
+  // EEPROM.update(address_threshold_temp, 40/T_increment);	    // First Setup Ever for T threshold, its measured in "increments", not the real value
+  // EEPROM.update(address_threshold_gas, 300/G_increment);	    // First Setup Ever for Gas threshold, its measured in "increments", not the real value
+  t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  
+  gas_threshold=EEPROM.read(address_threshold_temp)*G_increment;
+
+  if(test_on_setup) test_devices();
   
   screen_on=1;                      // Start device with on for time_screen_off seconds
   t_last_click=millis();
@@ -97,7 +103,7 @@ void test_devices()
   test_buzzer();          // TESTING BUZZER
   test_dht();             // TESTING DHT
   test_gas_sensor();      // TESTING GAS SENSOR
-  test_eemprom();         // TESTING EEPROM (PEND)
+  test_eeprom();         // TESTING EEPROM
   
   // END OF TESTS
   lcd.clear();
@@ -224,13 +230,13 @@ void test_gas_sensor()
   delay(time_interval_test);
 }
 
-void test_eemprom()
+void test_eeprom()
 {
   lcd.clear();
   lcd.print("Testing EEPROM");
   delay(time_interval_test);
   lcd.clear();
-  lcd.print("Reading EEMPROM");
+  lcd.print("Reading EEPROM");
   t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  
   gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
   delay(time_interval_test); 
@@ -262,4 +268,3 @@ void read_sensors()
     t_last_read=millis();
   }
 }
-```
