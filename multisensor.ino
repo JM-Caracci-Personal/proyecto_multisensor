@@ -6,12 +6,13 @@
 #include <EEPROM.h>
 
 // Define constants
-#define time_out_test 10000           // time out for each test
-#define time_interval_test 2000       // time between tests
-#define time_warmup_gas_sensor 20000  // time to warm up gas sensor Default 20000
-#define time_screen_off 30000         // time to turn off screen
-#define min_t_btw_read 3000           // time between reading sensors
-#define time_alarm_off 300000         // time out for alarm Default 300000
+#define time_out_test 10000             // time out for each test
+#define time_interval_test 2000         // time between tests
+#define time_warmup_gas_sensor 20000    //  time to warm up gas sensor Default 20000
+#define time_screen_off 30000           // time to turn off screen
+#define min_t_btw_read 3000             // time between reading sensors
+#define time_alarm_off 10000            // PEND time out for alarm Default 300000
+#define alarm_period 500                // light and sound alarm duration Default 500
 #define T_increment 1
 #define G_increment 5
 
@@ -38,8 +39,8 @@ int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
 int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 int display_mode=0; int pos_pswd_alarm=0;
 bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
-bool buzzer_sound_on, led_light_on=1;
-long t_last_click,t_last_read,t_alarm;
+bool buzzer_sound_on, led_light_on=0;
+long t_last_click,t_last_read,t_alarm, t_led_sound_control;
 
 void setup() 
 {
@@ -80,11 +81,8 @@ void setup()
 
 void loop() 
 {
-  if (millis()-t_last_read>min_t_btw_read)
-  {
-    read_sensors();
-    check_sensor_trigger_alarm();
-  }
+  read_sensors();
+  check_sensor_trigger_alarm();
 }
 
 void setup_gas_sensor()
@@ -262,20 +260,23 @@ void test_eeprom()
 
 void read_sensors()
 {
-  Serial.println("----------------------");
-  temp=dht.readTemperature();
-  if (isnan(temp)) 	                // DHT Working OK?
-    Serial.println("DHT NOT OK");   
-  else
+  if (millis()-t_last_read>min_t_btw_read)
   {
-    Serial.print("Temp: ");
-    Serial.print(temp);
-    Serial.println(" C");
-  }  
-  gas_level=analogRead(pin_GAS_SENSOR);
-  Serial.print("Gas: " );  
-  Serial.println(gas_level); 
-  t_last_read=millis();
+    Serial.println("----------------------");
+    temp=dht.readTemperature();
+    if (isnan(temp)) 	                // DHT Working OK?
+      Serial.println("DHT NOT OK");   
+    else
+    {
+      Serial.print("Temp: ");
+      Serial.print(temp);
+      Serial.println(" C");
+    }  
+    gas_level=analogRead(pin_GAS_SENSOR);
+    Serial.print("Gas: " );  
+    Serial.println(gas_level); 
+    t_last_read=millis();
+  }
 }
 
 void check_sensor_trigger_alarm()
@@ -296,28 +297,36 @@ void check_sensor_trigger_alarm()
   }
   if(alarm_on)
   {
-    if(millis()-t_alarm<time_alarm_off)
-    {
-      // PEND: borrar todo esto despues porque se aborda en la funcion display
-      lcd.backlight();
-      lcd.clear();
-      lcd.print("ALARM!!!");
-      lcd.setCursor(0, 1);
-      lcd.print("Gas:");
-      lcd.print(gas_level);
-      lcd.print("-Temp:");
-      lcd.print(temp);
-      // HASTA ACÁ -> borrar todo esto despues porque se aborda en la funcion display
- 
-      // PEND: SONAR ALARMA Y LUZ SEGUN ESTE CONFIGURADO EN CONTROL[]
+    if(millis()-t_alarm<time_alarm_off)     // IF alarm is on and there is no Time out
+    { 
+      if (millis()-t_led_sound_control>alarm_period)   // IF its time to toggle the alarm sound/light
+      {
+        if(!(buzzer_sound_on || led_light_on))  // IF Buzzer or light is off
+        {
+          tone(pin_BUZZER,440,alarm_period);
+          digitalWrite(pin_LED, HIGH);
+          buzzer_sound_on=1;
+          led_light_on=1;
+        }
+        else
+        {
+          noTone(pin_BUZZER);
+          digitalWrite(pin_LED, LOW);
+          buzzer_sound_on=0;
+          led_light_on=0;
+        }
+        t_led_sound_control=millis();
+      }
     }
     else // Deactivating alarm because of timeout
     {
+      Serial.println("Time Out Alarm");
       alarm_on=0;
       disabling_alarm=0;
       pos_pswd_alarm=0;
       screen_on=0;
-      lcd.noBacklight(); // BORRAR Despues porque lo aborda la función display
+      digitalWrite(pin_LED, LOW);
+      noTone(pin_BUZZER);
     }
   }
   return;
