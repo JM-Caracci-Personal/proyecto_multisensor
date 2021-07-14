@@ -8,9 +8,10 @@
 // Define constants
 #define time_out_test 10000           // time out for each test
 #define time_interval_test 2000       // time between tests
-#define time_warmup_gas_sensor 20000  // time to warm up gas sensor
+#define time_warmup_gas_sensor 20000  // time to warm up gas sensor Default 20000
 #define time_screen_off 30000         // time to turn off screen
 #define min_t_btw_read 3000           // time between reading sensors
+#define time_alarm_off 300000         // time out for alarm Default 300000
 #define T_increment 1
 #define G_increment 5
 
@@ -35,10 +36,10 @@ DHT dht(pin_DHT, DHTTYPE);	        // Create dht
 float temp, gas_level;
 int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
 int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
-int display_mode=0;
+int display_mode=0; int pos_pswd_alarm=0;
 bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
 bool buzzer_sound_on, led_light_on=1;
-long t_last_click,t_last_read;
+long t_last_click,t_last_read,t_alarm;
 
 void setup() 
 {
@@ -52,8 +53,14 @@ void setup()
   pinMode(pin_BUZZER, OUTPUT);
   
   if (!digitalRead(pin_M)) test_on_setup=true;  
-  Serial.println("test_on_setup=");
+  
+  Serial.print("test_on_setup = ");
   Serial.println(test_on_setup);
+  Serial.println("Thresholds:");
+  Serial.print("Temp. Celsius = ");
+  Serial.println(t_threshold);
+  Serial.print("Gas = ");
+  Serial.println(gas_threshold);
     
   lcd.init();                     // INITIALIZE LCD
   dht.begin();	                  // INITIALIZE DHT
@@ -63,7 +70,7 @@ void setup()
   // EEPROM.update(address_threshold_temp, 40/T_increment);	    // First Setup Ever for T threshold, its measured in "increments", not the real value
   // EEPROM.update(address_threshold_gas, 300/G_increment);	    // First Setup Ever for Gas threshold, its measured in "increments", not the real value
   t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  
-  gas_threshold=EEPROM.read(address_threshold_temp)*G_increment;
+  gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 
   if(test_on_setup) test_devices();
   
@@ -73,7 +80,11 @@ void setup()
 
 void loop() 
 {
-  read_sensors();
+  if (millis()-t_last_read>min_t_btw_read)
+  {
+    read_sensors();
+    check_sensor_trigger_alarm();
+  }
 }
 
 void setup_gas_sensor()
@@ -251,20 +262,63 @@ void test_eeprom()
 
 void read_sensors()
 {
-  if (millis()-t_last_read>min_t_btw_read)
+  Serial.println("----------------------");
+  temp=dht.readTemperature();
+  if (isnan(temp)) 	                // DHT Working OK?
+    Serial.println("DHT NOT OK");   
+  else
   {
-    temp=dht.readTemperature();
-    if (isnan(temp)) 	                // DHT Working OK?
-      Serial.println("DHT NOT OK");   
-    else
-    {
-      Serial.print("Temp: ");
-      Serial.print(temp);
-      Serial.println(" C");
-    }  
-    gas_level=analogRead(pin_GAS_SENSOR);
-    Serial.print("Gas: " );  
-    Serial.println(gas_level); 
-    t_last_read=millis();
+    Serial.print("Temp: ");
+    Serial.print(temp);
+    Serial.println(" C");
+  }  
+  gas_level=analogRead(pin_GAS_SENSOR);
+  Serial.print("Gas: " );  
+  Serial.println(gas_level); 
+  t_last_read=millis();
+}
+
+void check_sensor_trigger_alarm()
+{
+  if(temp>t_threshold || gas_level>gas_threshold)
+  {
+    t_alarm=millis();
+    alarm_on=true;
+    Serial.println("Trigger Alarm");
+    Serial.print("Temp real - threshold = ");
+    Serial.print(temp);
+    Serial.print(" - ");
+    Serial.println(t_threshold);
+    Serial.print("Gas real - threshold = ");
+    Serial.print(gas_level);
+    Serial.print(" - ");
+    Serial.println(gas_threshold);
   }
+  if(alarm_on)
+  {
+    if(millis()-t_alarm<time_alarm_off)
+    {
+      // PEND: borrar todo esto despues porque se aborda en la funcion display
+      lcd.backlight();
+      lcd.clear();
+      lcd.print("ALARM!!!");
+      lcd.setCursor(0, 1);
+      lcd.print("Gas:");
+      lcd.print(gas_level);
+      lcd.print("-Temp:");
+      lcd.print(temp);
+      // HASTA ACÁ -> borrar todo esto despues porque se aborda en la funcion display
+ 
+      // PEND: SONAR ALARMA Y LUZ SEGUN ESTE CONFIGURADO EN CONTROL[]
+    }
+    else // Deactivating alarm because of timeout
+    {
+      alarm_on=0;
+      disabling_alarm=0;
+      pos_pswd_alarm=0;
+      screen_on=0;
+      lcd.noBacklight(); // BORRAR Despues porque lo aborda la función display
+    }
+  }
+  return;
 }
