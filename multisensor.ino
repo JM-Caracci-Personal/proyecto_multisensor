@@ -8,11 +8,12 @@
 // Define constants
 #define time_out_test 10000             // time out for each test
 #define time_interval_test 2000         // time between tests
-#define time_warmup_gas_sensor 20000    //  time to warm up gas sensor Default 20000
+#define time_warmup_gas_sensor 2000    //  time to warm up gas sensor Default 20000
 #define time_screen_off 30000           // time to turn off screen
 #define min_t_btw_read 3000             // time between reading sensors
 #define time_alarm_off 10000            // PEND time out for alarm Default 300000
 #define alarm_period 500                // light and sound alarm duration Default 500
+#define t_click_sensitivity 300          // in milliseconds
 #define T_increment 1
 #define G_increment 5
 
@@ -37,7 +38,7 @@ DHT dht(pin_DHT, DHTTYPE);	        // Create dht
 float temp, gas_level;
 int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
 int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
-int display_mode=0; int pos_pswd_alarm=0;
+int display_mode=0;   // 0:display temp&gas - 1: Change Temp threshold - 2: Change Gas Threshold - 3: Toggle screen on/off
 bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
 bool buzzer_sound_on, led_light_on=0;
 long t_last_click,t_last_read,t_alarm, t_led_sound_control;
@@ -81,8 +82,10 @@ void setup()
 
 void loop() 
 {
-  read_sensors();
+  read_thresholds_and_sensors();
   check_sensor_trigger_alarm();
+  read_buttons_trigger_action();
+  display_info();
 }
 
 void setup_gas_sensor()
@@ -142,13 +145,13 @@ void test_button(int pin)
   String buttonName = "Hello String";
   switch (pin)
     {
-      case 4:
+      case pin_M:
         buttonName="M";
         break;
-      case 7:
+      case pin_PLUS:
         buttonName="+";
         break;
-      case 6:
+      case pin_MINUS:
         buttonName="-";
         break;
       default:
@@ -258,34 +261,21 @@ void test_eeprom()
   delay(time_interval_test);
 }
 
-void read_sensors()
+void read_thresholds_and_sensors()
 {
+  t_threshold=EEPROM.read(address_threshold_temp)*T_increment;  // PEND Refactor, no es necesario leerlo siempre
+  gas_threshold=EEPROM.read(address_threshold_gas)*G_increment; // PEND Refactor, no es necesario leerlo siempre
   if (millis()-t_last_read>min_t_btw_read)
   {
     Serial.println("----------------------");
     temp=dht.readTemperature();
     if (isnan(temp)) 	                // DHT Working OK?
       Serial.println("DHT NOT OK");   
-    else
-    {
-      Serial.print("Temp: ");
-      Serial.print(temp);
-      Serial.println(" C");
-    }  
     gas_level=analogRead(pin_GAS_SENSOR);
-    Serial.print("Gas: " );  
-    Serial.println(gas_level); 
     t_last_read=millis();
-  }
-}
-
-void check_sensor_trigger_alarm()
-{
-  if(temp>t_threshold || gas_level>gas_threshold)
-  {
-    t_alarm=millis();
-    alarm_on=true;
-    Serial.println("Trigger Alarm");
+    
+    Serial.print("Display Mode = ");
+    Serial.println(display_mode);
     Serial.print("Temp real - threshold = ");
     Serial.print(temp);
     Serial.print(" - ");
@@ -294,6 +284,17 @@ void check_sensor_trigger_alarm()
     Serial.print(gas_level);
     Serial.print(" - ");
     Serial.println(gas_threshold);
+    Serial.println("----------------------");
+  }
+}
+
+void check_sensor_trigger_alarm()
+{
+  if(temp>t_threshold || gas_level>gas_threshold)
+  {
+    Serial.println("Trigger Alarm");
+    t_alarm=millis();
+    alarm_on=true;
   }
   if(alarm_on)
   {
@@ -321,13 +322,117 @@ void check_sensor_trigger_alarm()
     else // Deactivating alarm because of timeout
     {
       Serial.println("Time Out Alarm");
-      alarm_on=0;
-      disabling_alarm=0;
-      pos_pswd_alarm=0;
-      screen_on=0;
-      digitalWrite(pin_LED, LOW);
-      noTone(pin_BUZZER);
+      disable_alarm();
     }
   }
   return;
+}
+
+void  read_buttons_trigger_action()
+{
+  if (millis()-t_last_click>t_click_sensitivity)
+  {
+    if (!digitalRead(pin_M) || !digitalRead(pin_PLUS) || !digitalRead(pin_MINUS))
+    {
+      t_last_click=millis();    
+      if (alarm_on)
+        disable_alarm();
+      else
+      {
+        if (!screen_on)
+        {
+          screen_on=1;
+          display_mode=0;
+        }
+        else
+        {
+          // PEND do whatever the button must do
+          // if M, M++, if M resultante=4 entonces M=0
+          if(!digitalRead(pin_M))
+            {
+              Serial.print("Cambiar de display mode "); 
+              Serial.print(display_mode); 
+              Serial.print(" al "); 
+              display_mode++;
+              display_mode=display_mode%4;
+              Serial.println(display_mode);
+            }
+            
+          switch(display_mode)           
+            {
+              // Case M=0 do nothing
+              case 0:
+              break;
+              
+              // Case M=1, up or down temp threshold
+              case 1:
+                if(EEPROM.read(address_threshold_temp)!=0 && EEPROM.read(address_threshold_temp)!=999)
+                {              
+                  if(!digitalRead(pin_PLUS))
+                  {
+                    Serial.println("Subir threshold temp en 1 incremento"); 
+                    EEPROM.update(address_threshold_temp, EEPROM.read(address_threshold_temp)+1);                
+                  }
+                  if(!digitalRead(pin_MINUS))
+                  {
+                    Serial.println("Bajar threshold temp en 1 incremento");   
+                    EEPROM.update(address_threshold_temp, EEPROM.read(address_threshold_temp)-1);               
+                  }
+                }
+              break;
+              
+              // Case M=2, up or down gas threshold
+              case 2:
+                if(EEPROM.read(address_threshold_gas)!=0 && EEPROM.read(address_threshold_gas)!=999)
+                {              
+                  if(!digitalRead(pin_PLUS))
+                  {
+                    Serial.println("Subir threshold gas en 1 incremento"); 
+                    EEPROM.update(address_threshold_gas, EEPROM.read(address_threshold_gas)+1);                
+                  }
+                  if(!digitalRead(pin_MINUS))
+                  {
+                    Serial.println("Bajar threshold gas en 1 incremento");   
+                    EEPROM.update(address_threshold_gas, EEPROM.read(address_threshold_gas)-1);               
+                  }
+                }             
+              break;
+              
+              // Case M=3, toggle on/off screen
+              case 3:
+                if(!digitalRead(pin_PLUS) || !digitalRead(pin_MINUS))
+                {
+                  Serial.println("Toggle screen"); 
+                  screen_on=!screen_on;
+                  display_mode=0;                                  
+                }
+              break;
+            }
+        }
+      }
+    }
+  }
+  else 
+    Serial.println("Too soon to read buttons"); 
+  
+  return;
+}
+
+
+void display_info()
+{
+  // PEND seguir aca
+  return;
+}
+
+void disable_alarm()
+{
+  Serial.println("Disabling Alarm");
+  alarm_on=0;
+  disabling_alarm=0;
+  display_mode=0;
+  screen_on=0;
+  digitalWrite(pin_LED, LOW);
+  noTone(pin_BUZZER);
+  // PEND agregar mensaje "DISABLING ALARM"
 }
