@@ -11,9 +11,11 @@
 #define time_warmup_gas_sensor 2000    //  time to warm up gas sensor Default 20000
 #define time_screen_off 30000           // time to turn off screen
 #define min_t_btw_read 3000             // time between reading sensors
+#define time_alarm_disabled 10000       // time alarms keep desabled no matter what
 #define time_alarm_off 10000            // PEND time out for alarm Default 300000
 #define alarm_period 500                // light and sound alarm duration Default 500
-#define t_click_sensitivity 300          // in milliseconds
+#define t_click_sensitivity 250          // in milliseconds
+#define lcd_refresh_rate 200            // in milliseconds
 #define T_increment 1
 #define G_increment 5
 
@@ -39,9 +41,9 @@ float temp, gas_level;
 int t_threshold=EEPROM.read(address_threshold_temp)*T_increment;
 int gas_threshold=EEPROM.read(address_threshold_gas)*G_increment;
 int display_mode=0;   // 0:display temp&gas - 1: Change Temp threshold - 2: Change Gas Threshold - 3: Toggle screen on/off
-bool test_on_setup,screen_on,alarm_on,disabling_alarm,lcd_always_on=0;
+bool test_on_setup,screen_on,alarm_on,disabling_alarm=0;
 bool buzzer_sound_on, led_light_on=0;
-long t_last_click,t_last_read,t_alarm, t_led_sound_control;
+long t_last_click,t_last_read,t_alarm, t_led_sound_control, t_alarm_was_disabled, t_last_lcd_refresh;
 
 void setup() 
 {
@@ -77,7 +79,9 @@ void setup()
   if(test_on_setup) test_devices();
   
   screen_on=1;                      // Start device with on for time_screen_off seconds
+  display_mode=0;
   t_last_click=millis();
+  t_last_lcd_refresh=millis();
 }
 
 void loop() 
@@ -267,7 +271,7 @@ void read_thresholds_and_sensors()
   gas_threshold=EEPROM.read(address_threshold_gas)*G_increment; // PEND Refactor, no es necesario leerlo siempre
   if (millis()-t_last_read>min_t_btw_read)
   {
-    Serial.println("----------------------");
+    Serial.println("---------------------------------------");
     temp=dht.readTemperature();
     if (isnan(temp)) 	                // DHT Working OK?
       Serial.println("DHT NOT OK");   
@@ -284,13 +288,17 @@ void read_thresholds_and_sensors()
     Serial.print(gas_level);
     Serial.print(" - ");
     Serial.println(gas_threshold);
-    Serial.println("----------------------");
+    Serial.print("Alarm is = ");
+    Serial.println(alarm_on);
+    Serial.print("Screen is = ");
+    Serial.println(screen_on);
+    Serial.println("---------------------------------------");
   }
 }
 
 void check_sensor_trigger_alarm()
 {
-  if(temp>t_threshold || gas_level>gas_threshold)
+  if((temp>t_threshold || gas_level>gas_threshold) && millis()-t_alarm_was_disabled>time_alarm_disabled)
   {
     Serial.println("Trigger Alarm");
     t_alarm=millis();
@@ -421,7 +429,72 @@ void  read_buttons_trigger_action()
 
 void display_info()
 {
-  // PEND seguir aca
+  if (alarm_on==1)
+  {
+    // Display ALARM MSG
+    lcd.backlight();  //  TURN ON LCD BACKLIGHT
+    lcd.setCursor(0, 0);
+    lcd.print("ALARM! ALARM!");
+    lcd.setCursor(0, 1);
+    if (gas_level>gas_threshold)
+    {
+      lcd.print("DANGER GAS");
+    }
+    else if(temp>t_threshold)
+    {
+      lcd.print("DANGER Temp");      
+    }
+  }
+  else
+  {
+    if (millis()-t_last_click > time_screen_off || screen_on==0)
+    {
+      screen_on=0;
+      display_mode=0;
+      lcd.clear();
+      lcd.noBacklight(); 
+    }
+    else if (screen_on==1 && millis()-t_last_lcd_refresh > lcd_refresh_rate)
+    {
+      lcd.backlight();
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      /*
+      M0: “Tº=xx  -  Lmt=xx”, “Ga=xxx - Lmt=xxx” 
+      M1: “Limite de Tempº ”, “   -   xxº  +   ”
+      M2: “Limite de Gas   ”, “   -   xxx  +   ”
+      M3: “Display”, “   -   ON  +    ”
+       */
+      switch (display_mode)
+      {
+        case 0:
+          lcd.print("T=");
+          lcd.print((int)round(temp));
+          lcd.print("    - Lmt=");
+          lcd.print(t_threshold);
+          lcd.setCursor(0, 1);
+          lcd.print("Gas=");
+          lcd.print((int)round(gas_level));
+          lcd.print(" - Lmt=");
+          lcd.print(gas_threshold);          
+          break;
+        case 1:
+          lcd.print("Mode 1");
+          break;
+        case 2:
+          lcd.print("Mode 2");
+          break;
+        case 3:
+          lcd.print("Mode 3");
+          break;
+        default:
+          screen_on=0;
+          display_mode=0;
+          break;
+      }
+      t_last_lcd_refresh=millis();
+    }
+  }
   return;
 }
 
@@ -431,8 +504,13 @@ void disable_alarm()
   alarm_on=0;
   disabling_alarm=0;
   display_mode=0;
-  screen_on=0;
   digitalWrite(pin_LED, LOW);
   noTone(pin_BUZZER);
-  // PEND agregar mensaje "DISABLING ALARM"
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("DISABLING ALARM");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  t_alarm_was_disabled=millis();
 }
