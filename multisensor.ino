@@ -10,6 +10,7 @@
 #define time_interval_test 2000         // time between tests
 #define time_warmup_gas_sensor 2000    //  time to warm up gas sensor Default 20000
 #define time_screen_off 30000           // time to turn off screen
+#define time_Mx_to_M0 5000              // time to return to M0 screen if nothing is pressed
 #define min_t_btw_read 3000             // time between reading sensors
 #define time_alarm_disabled 10000       // time alarms keep desabled no matter what
 #define time_alarm_off 10000            // PEND time out for alarm Default 300000
@@ -354,7 +355,6 @@ void  read_buttons_trigger_action()
         }
         else
         {
-          // PEND do whatever the button must do
           // if M, M++, if M resultante=4 entonces M=0
           if(!digitalRead(pin_M))
             {
@@ -454,38 +454,51 @@ void display_info()
       lcd.clear();
       lcd.noBacklight(); 
     }
-    else if (screen_on==1 && millis()-t_last_lcd_refresh > lcd_refresh_rate)
+    else if (millis()-t_last_click > time_Mx_to_M0)
+    {
+      screen_on=1;
+      display_mode=0;
+    }    
+    if (screen_on==1 && millis()-t_last_lcd_refresh > lcd_refresh_rate)
     {
       lcd.backlight();
       lcd.clear();
       lcd.setCursor(0, 0);
-      /*
-      M0: “Tº=xx  -  Lmt=xx”, “Ga=xxx - Lmt=xxx” 
-      M1: “Limite de Tempº ”, “   -   xxº  +   ”
-      M2: “Limite de Gas   ”, “   -   xxx  +   ”
-      M3: “Display”, “   -   ON  +    ”
-       */
+      /* PEND Flickering screen, idealmente no hacer backlight y clear cada vez... */
       switch (display_mode)
       {
         case 0:
           lcd.print("T=");
           lcd.print((int)round(temp));
-          lcd.print("    - Lmt=");
+          lcd.print("     Lmt=");
           lcd.print(t_threshold);
           lcd.setCursor(0, 1);
           lcd.print("Gas=");
           lcd.print((int)round(gas_level));
-          lcd.print(" - Lmt=");
+          lcd.print("  Lmt=");
           lcd.print(gas_threshold);          
           break;
         case 1:
-          lcd.print("Mode 1");
+          lcd.print("Temp Limit");
+          lcd.setCursor(0, 1);
+          lcd.print("   -   ");
+          lcd.print(t_threshold);
+          lcd.print("   +   ");
           break;
         case 2:
-          lcd.print("Mode 2");
+          lcd.print("Gas Limit");
+          lcd.setCursor(0, 1);
+          lcd.print("   -  ");
+          lcd.print(gas_threshold);
+          lcd.print("   +   ");
           break;
         case 3:
-          lcd.print("Mode 3");
+          lcd.print("Screen is");
+          lcd.setCursor(0, 1);
+          lcd.print("   -  ");
+          if(screen_on==1) lcd.print("ON ");
+          else lcd.print("OFF");
+          lcd.print("   +   ");   
           break;
         default:
           screen_on=0;
@@ -509,8 +522,9 @@ void disable_alarm()
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("DISABLING ALARM");
-  delay(1000);
+  delay(2000);
   lcd.clear();
+  screen_on=1;
   lcd.setCursor(0, 0);
   t_alarm_was_disabled=millis();
 }
