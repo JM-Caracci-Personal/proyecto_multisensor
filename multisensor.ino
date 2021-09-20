@@ -433,6 +433,7 @@ void display_info()
   {
     // Display ALARM MSG
     lcd.backlight();  //  TURN ON LCD BACKLIGHT
+    lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("ALARM! ALARM!");
     lcd.setCursor(0, 1);
